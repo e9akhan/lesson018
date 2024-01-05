@@ -5,8 +5,8 @@
     compound_interest(principal, time, rate),
     compound_interest_with_payments(principal, payment, term, rate, end_of_period=False),
     savings_calculator(present_value, future_value, term, rate, end_of_period=True),
-    create_dict_with_keys(data, keys),
-    extract_data_and_common_keys(filename1, filename2),
+    check(data1, data2, **kwargs),
+    join(file1_data, file2_data, **kwargs),
     files_innerjoin(filename1, filename2, **kwargs),
     files_leftouterjoin(filename1, filename2, **kwargs),
     files_rightouterjoin(filename1, filename2, **kwargs),
@@ -123,57 +123,57 @@ def savings_calculator(present_value, future_value, term, rate, end_of_period=Tr
     return formatting(principal)
 
 
-def create_dict_with_keys(data, keys):
+def check(data1, data2, **kwargs):
     """
-    Create dictionary with guven keys.
+    Check whether the key is present in both data.
 
     Args:-
-        data(list) :- List of dictionaries.
-        keys(list) :- Keys of dictionary
+        data1(list) :- Data from file 1.
+        data2(list) :- Data from file 2.
+        **kwargs(dict) :- keys
 
     Return
-        Dictionary with given key.
+        data if key is present else False
     """
-    results = []
+    for key in kwargs.values():
+        if data1[key.lower()] != data2[key.lower()]:
+            return False
 
-    for entry in data:
-        dictionary = {}
-        for key in keys:
-            if key in entry:
-                dictionary[key] = entry[key]
-            else:
-                dictionary[key] = None
-
-        results.append(dictionary)
-
-    return results
+    return data1, data2
 
 
-def extract_data_and_common_keys(filename1, filename2):
+def join(file1_data, file2_data, **kwargs):
     """
-    Extract data from the files and find common keys.
+    Perform join operation on file1_data and file2_data.
 
     Args:-
-        filename1(str) :- Name of file 1.
-        filename2(str) :- Name of file 2.
+        file1_data(list) :- Data from file 1.
+        file2_data(list) :- Data from file 2.
 
     Return
-        Data from both files and common keys.
+        file1_data(list) :- Modified data of File 1.
+        data_list(list) :- Common data
+        keys(list) :- common keys.
     """
-    with open(filename1, "r", encoding="utf-8") as f:
-        csvreader = csv.DictReader(f)
-        file1_data = list(csvreader)
+    for key in kwargs.values():
+        if (
+            key.lower() not in file1_data[0].keys()
+            or key.lower() not in file2_data[0].keys()
+        ):
+            return None
 
-    with open(filename2, "r", encoding="utf-8") as f2:
-        csvreader = csv.DictReader(f2)
-        file2_data = list(csvreader)
+    data_list = []
 
-    common_keys = file1_data[0].keys() & file2_data[0].keys()
+    for data1 in file1_data:
+        for data2 in file2_data:
+            if check(data1, data2, **kwargs):
+                data1.update(data2)
+                data_list.append(data1)
 
-    return file1_data, file2_data, common_keys
+    return file1_data, data_list, data_list[0].keys()
 
 
-def files_innerjoin(filename1, filename2):
+def files_innerjoin(filename1, filename2, **kwargs):
     """
     Create a csv file with data from common keys.
 
@@ -184,23 +184,31 @@ def files_innerjoin(filename1, filename2):
     Return
         Data with common keys.
     """
-    file1_data, file2_data, common_keys = extract_data_and_common_keys(
-        filename1, filename2
-    )
+    if not kwargs:
+        return None
 
-    data = create_dict_with_keys(file1_data, common_keys) + create_dict_with_keys(
-        file2_data, common_keys
-    )
+    with open(filename1, "r", encoding="utf-8") as f1:
+        csvreader = csv.DictReader(f1)
+        file1_data = list(csvreader)
 
-    with open("results.csv", "w", encoding="utf-8") as results:
-        csvwriter = csv.DictWriter(results, fieldnames=common_keys)
+    with open(filename2, "r", encoding="utf-8") as f2:
+        csvreader = csv.DictReader(f2)
+        file2_data = list(csvreader)
+
+    output = join(file1_data, file2_data, **kwargs)
+
+    if not output:
+        return None
+
+    with open("result.csv", "w", encoding="utf-8") as result:
+        csvwriter = csv.DictWriter(result, fieldnames=output[2])
         csvwriter.writeheader()
-        csvwriter.writerows(data)
+        csvwriter.writerows(output[1])
 
-    return data
+    return output[1]
 
 
-def files_leftouterjoin(filename1, filename2):
+def files_leftouterjoin(filename1, filename2, **kwargs):
     """
     Create a csv file with data from file1 and common keys in file2.
 
@@ -209,24 +217,33 @@ def files_leftouterjoin(filename1, filename2):
         filename2(str) :- Name of file 2.
 
     Return
-        Data from file1 and file2 with common keys.
+        Data from file1 and file2 of common keys.
     """
-    file1_data, file2_data, common_keys = extract_data_and_common_keys(
-        filename1, filename2
-    )
-    keys = file1_data[0].keys()
+    if not kwargs:
+        return None
 
-    file1_data += create_dict_with_keys(file2_data, keys)
+    with open(filename1, "r", encoding="utf-8") as f1:
+        csvreader = csv.DictReader(f1)
+        file1_data = list(csvreader)
 
-    with open("results.csv", "w", encoding="utf-8") as results:
-        csvwriter = csv.DictWriter(results, fieldnames=keys)
+    with open(filename2, "r", encoding="utf-8") as f2:
+        csvreader = csv.DictReader(f2)
+        file2_data = list(csvreader)
+
+    output = join(file1_data, file2_data, **kwargs)
+
+    if not output:
+        return None
+
+    with open("result.csv", "w", encoding="utf-8") as result:
+        csvwriter = csv.DictWriter(result, fieldnames=output[2])
         csvwriter.writeheader()
-        csvwriter.writerows(file1_data)
+        csvwriter.writerows(output[0])
 
-    return file1_data
+    return output[0]
 
 
-def files_rightouterjoin(filename1, filename2):
+def files_rightouterjoin(filename1, filename2, **kwargs):
     """
     Create a csv file with data from file2 and common keys in file1.
 
@@ -235,21 +252,30 @@ def files_rightouterjoin(filename1, filename2):
         filename2(str) :- Name of file 2.
 
     Return
-        Data from file2 and file1 with common keys.
+        Data from file2 and file1 of common keys.
     """
-    file1_data, file2_data, common_keys = extract_data_and_common_keys(
-        filename1, filename2
-    )
-    keys = file2_data[0].keys()
+    if not kwargs:
+        return None
 
-    file2_data += create_dict_with_keys(file1_data, keys)
+    with open(filename1, "r", encoding="utf-8") as f1:
+        csvreader = csv.DictReader(f1)
+        file1_data = list(csvreader)
 
-    with open("results.csv", "w", encoding="utf-8") as results:
-        csvwriter = csv.DictWriter(results, fieldnames=keys)
+    with open(filename2, "r", encoding="utf-8") as f2:
+        csvreader = csv.DictReader(f2)
+        file2_data = list(csvreader)
+
+    output = join(file2_data, file1_data, **kwargs)
+
+    if not output:
+        return None
+
+    with open("result.csv", "w", encoding="utf-8") as result:
+        csvwriter = csv.DictWriter(result, fieldnames=output[2])
         csvwriter.writeheader()
-        csvwriter.writerows(file2_data)
+        csvwriter.writerows(output[0])
 
-    return file2_data
+    return output[0]
 
 
 def list_to_dict(data: list):
@@ -341,9 +367,9 @@ if __name__ == "__main__":
     print(compound_interest(123456, 23, 0.08))
     print(compound_interest_with_payments(0, 368970.52, 35, 0.10))
     print(savings_calculator(0, 1e8, 35, 0.10))
-    print(files_innerjoin("sample1.csv", "sample2.csv"))
-    print(files_leftouterjoin("sample1.csv", "sample2.csv"))
-    print(files_rightouterjoin("sample1.csv", "sample2.csv"))
+    print(files_innerjoin("sample1.csv", "sample2.csv", key="Name"))
+    print(files_leftouterjoin("sample1.csv", "sample2.csv", key="Name"))
+    print(files_rightouterjoin("sample1.csv", "sample2.csv", key="Name"))
     print(list_to_dict([{"name": "a", "age": 21}, {"name": "b", "age": 43}]))
     print(dict_to_list({"name": ["a", "b"], "age": [21, 43]}))
     print(split_file("sample3.csv", ["city", "is_married"]))
