@@ -1,6 +1,6 @@
 """
     Module name :- utils.py
-    Method(s) :- format(number),
+    Method(s) :- formatting(number),
     simple_interest(principal, time, rate),
     compound_interest(principal, time, rate),
     compound_interest_with_payments(principal, payment, term, rate, end_of_period=False),
